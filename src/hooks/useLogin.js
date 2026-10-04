@@ -1,28 +1,30 @@
 import { useState, useEffect } from "react";
 import {
   auth,
-  createUserWithEmailAndPassword,
-  updateProfile,
-  db,
-  setDoc,
+  signInWithEmailAndPassword,
+  updateDoc,
+  query,
   collection,
   getDocs,
+  where,
   doc,
+  db,
 } from "../firebase/config";
 import UseMyUserContext from "../hooks/UseUserContext";
-import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 
-export const useSignup = () => {
+export const useLogin = () => {
   const [isCancelled, setIsCancelled] = useState(false);
   const [error, setError] = useState(null);
   const [isPending, setIsPending] = useState(false);
   const { dispatch } = UseMyUserContext();
   const navigate = useNavigate();
 
+  // console.log(data);
+
   const findUser = async (user) => {
     const { uid } = user;
-    console.log("finding user", uid);
+    // console.log("finding user", uid);
 
     let data = {};
     const querySnapshot = await getDocs(collection(db, "UsersTestCss"));
@@ -31,57 +33,40 @@ export const useSignup = () => {
         data = doc.data();
       }
     });
-    setIsPending(false);
-    dispatch({ type: "LOGIN_GOOGLE", payload: { user, data } });
+
+    dispatch({ type: "LOGIN", payload: { user, data } });
   };
 
-  const signup = async (email, password, displayName) => {
+  const login = async (email, password) => {
     setError(null);
     setIsPending(true);
 
     try {
-      // signup
-      const res = await createUserWithEmailAndPassword(auth, email, password);
-      console.log(res);
+      // login
+      const res = await signInWithEmailAndPassword(auth, email, password);
 
       if (!res) {
-        throw new Error("Could not complete signup");
+        throw new Error("Could not complete the Sign In");
       }
 
-      // add display name to user
-      await updateProfile(auth.currentUser, { displayName });
-
-      //create a user document
-      await setDoc(doc(db, "UsersTestCss", res.user.uid), {
+      // update online status
+      await updateDoc(doc(db, "UsersTestCss", res.user.uid), {
         online: true,
-        displayName,
-        isAdmin: "0",
-        id: res.user.uid,
-        company: "",
-        title: "",
-        photoURL: "",
-        photoRef: "",
+        // photoURL:'/images/logo.png'
       });
 
       // findUser(user);
       findUser(res.user);
       navigate("/");
 
-      // dispatch login action
-      // dispatch({ type: "LOGIN", payload: res.user });
-
       if (!isCancelled) {
         setIsPending(false);
         setError(null);
       }
     } catch (err) {
-      toast.error(`"Error .."+${err.message} `, {
-        position: "top-center",
-        autoClose: 7000,
-      });
+      console.log(err.message);
       if (!isCancelled) {
-        setError(err.message);
-        console.log(err);
+        setError(err);
         setIsPending(false);
       }
     }
@@ -92,5 +77,5 @@ export const useSignup = () => {
     return () => setIsCancelled(true);
   }, []);
 
-  return { signup, error, isPending };
+  return { login, isPending, error };
 };
